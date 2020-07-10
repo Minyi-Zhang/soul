@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MinyiSoul</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+
+    <section class="page-area">
+        <aside class="sidebar">
+            <h1>:) Hi, How are you?<br>
+                How do you feel now?<br>
+                Talk or hum about it.<br>
+                Soul is listening...</h1>
+            <p>&lt; Press and hold the Space button to record your voice &gt;</p>
+
+            <section class="voice-to-text">
+                <aside class="v2t-visual"><img src="./assets/img/button-speak.png" alt=""></aside>
+                <section class="v2t-output">
+                    <p class="hint">Today's weather is...</p>
+                    <p class="hint">I am so happy about...</p>
+                    <p class="hint">I am worried about...</p>
+                </section>
+            </section>
+        </aside>
+        <main class="main-area">
+            <section class="action-area">
+                <img src="./assets/img/button-return.png" class="button-return" alt="Press to return.">
+                <img src="./assets/img/button-play.png" id="playMusic" class="button-play" alt="Press to play.">
+                <img src="./assets/img/button-download.png" class="button-download" id="downloadSVG" alt=" Press to download.">
+            </section>
+
+        </main>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.15.1/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.0.0"></script>
+    <script src="sentimood.js"></script>
+
+    <script>
+        //open connection to speech2text program
+        let socket = io();
+
+        let $mainArea = document.querySelector('.main-area');
+
+        //size of canvas
+        let width = $mainArea.clientWidth;
+        let height = $mainArea.clientHeight;
+
+        //build svg area
+        let svg = d3.select('main')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        //make background color
+        //let background = svg.append('rect').attr('width', width).attr('height', height).attr('fill', '#FFFFFF');
+
+        //load sentiment analysis library
+        var sentiment = new Sentimood();
+
+        let score = 1;
+
+
+        function addMessageToScreen(message) {
+            const $area = document.querySelector('.v2t-output');
+            let $paragraph = document.createElement('p');
+            $paragraph.innerText = message;
+
+            $area.appendChild($paragraph)
+        }
+
+
+        //base song
+        MINYI_SONG = {
+            notes: [{
+                    pitch: 70,
+                    startTime: 0,
+                    endTime: 0.5
+                },
+                {
+                    pitch: 70,
+                    startTime: 0.5,
+                    endTime: 1
+                },
+                {
+                    pitch: 73,
+                    startTime: 1,
+                    endTime: 2
+                },
+                {
+                    pitch: 70,
+                    startTime: 2.5,
+                    endTime: 3
+                },
+                {
+                    pitch: 70,
+                    startTime: 3.5,
+                    endTime: 4
+                },
+                {
+                    pitch: 73,
+                    startTime: 4,
+                    endTime: 5
+                },
+                {
+                    pitch: 72,
+                    startTime: 5,
+                    endTime: 5.5
+                },
+                {
+                    pitch: 73,
+                    startTime: 5.5,
+                    endTime: 6
+                },
+                {
+                    pitch: 76,
+                    startTime: 6,
+                    endTime: 7
+                }
+
+            ],
+            totalTime: 7
+        };
+
+
+        // Initialize the model.
+        music_rnn = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn');
+        music_rnn.initialize();
+
+        //basic player with synthy sounds
+        //rnnPlayer = new mm.Player();
+
+        //fancy player with upright sounds
+        rnnPlayer = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus');
+
+        //softer piano - more like a grand piano
+        //rnnPlayer = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
+
+        // The model expects a quantized sequence, and the sequecnes are just raw notes:
+        let qns = mm.sequences.quantizeNoteSequence(MINYI_SONG, 7);
+
+        var playing = false;
+
+        d3.select('#playMusic').on('click', function () {
+            if (playing == false) {
+                //Tone.context.resume();
+                playing = true;
+                playLoop();
+            } else {
+                rnnPlayer.stop();
+                playing = false;
+            }
+        });
+
+
+        function playLoop() {
+            // score = -10
+            // score * 10 = -100
+            // score + 3 = -30
+            // Math.abs(score); -> 10
+            // Math.random()*score: ~-2.25352, -5.224...
+
+            // myScale = d3.scaleLinear().domain([-10,10]).range([200,380]);
+            // myScale(score) = 200
+
+            //keep between 0 and 5
+            let randomness = 1.5;
+
+            //speed should be between 80 and 300
+            let speed = 100;
+
+            //experiment
+            let steps = 20;
+
+            rnnPlayer.setTempo(speed);
+
+            var rnn_temperature = parseInt(randomness);
+            if (playing == true) {
+                //Extend the musical sequence
+                music_rnn.continueSequence(qns, steps, randomness).then((sample) => rnnPlayer.start(sample)).then((sample) => playLoop());
+            }
+
+        }
+
+        //when we receive an "update" message from Google Speech2Text
+        socket.on('update', function (msg) {
+
+            addMessageToScreen(msg)
+
+            //convert message to lowercase
+            msg = msg.toLowerCase()
+
+            //evaluate sentiment and print score to console
+            console.log((sentiment.analyze(msg)).score)
+            score = (sentiment.analyze(msg)).score
+
+
+            //value  adjustment
+            var scoreScale = d3.scaleLinear().domain([-10, 10]).range([0, 1]);
+
+            console.log(scoreScale(score))
+
+            //
+            circleCentersX = Math.random() * width
+            circleCentersY = Math.random() * height
+
+            for (var i = 0; i < Math.abs(score) * 2; i++) {
+                svg
+                    .append('circle')
+                    .attr('r', Math.abs(Math.random() * score * 50))
+                    .attr('cx', circleCentersX)
+                    .attr('cy', circleCentersY)
+                    .attr('fill', 1 - d3.interpolateRainbow(scoreScale(score * 10 * Math.random())))
+                    .attr('opacity', 0)
+                    .transition() // make animation
+                    .duration(1000) // make animation run for 1 second
+                    .attr('opacity', 0.2)
+            }
+        })
+
+
+        //for downloading graphic
+        d3.select("#downloadSVG").on('click', function (d) {
+            var svgData = d3.select('svg').node().outerHTML;
+            var svgBlob = new Blob([svgData], {
+                type: "image/svg+xml;charset=utf-8"
+            });
+            var svgUrl = URL.createObjectURL(svgBlob);
+            var downloadLink = document.createElement("a");
+            downloadLink.href = svgUrl;
+            downloadLink.download = "soul.svg";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        })
+    </script>
+</body>
+</html>

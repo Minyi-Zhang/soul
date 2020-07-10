@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MinyiSoul</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+
+  <section class="page-area">
+    <aside class="sidebar">
+      <h1>:) Hi, How are you?<br>
+        How do you feel now?<br>
+        Talk or hum about it.<br>
+        Soul is listening...</h1>
+      <p>&lt; Press and hold the Space button to record your voice &gt;</p>
+
+      <section class="voice-to-text">
+        <aside class="v2t-visual"><img src="./assets/img/button-speak.png" alt=""></aside>
+        <section class="v2t-output">
+          <p class="hint">Today's weather is...</p>
+          <p class="hint">I am so happy about...</p>
+          <p class="hint">I am worried about...</p>
+        </section>
+      </section>
+    </aside>
+    <main class="main-area">
+      <section class="action-area">
+        <img src="./assets/img/button-return.png" class="button-return" alt="Press to return.">
+        <img src="./assets/img/button-play.png" class="button-play" alt="Press to play.">
+        <img src="./assets/img/button-download.png" class="button-download" id="downloadSVG" alt=" Press to download.">
+      </section>
+
+    </main>
+  </section>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.15.1/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.6.8/Tone.js"></script>
+  <script src="sentimood.js"></script>
+
+  <script>
+    //open connection to speech2text program
+    let socket = io();
+
+    let $mainArea = document.querySelector('.main-area');
+
+    //size of canvas
+    let width = $mainArea.clientWidth;
+    let height = $mainArea.clientHeight;
+
+    //build svg area
+    let svg = d3.select('main')
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height);
+
+    //make background color
+    //let background = svg.append('rect').attr('width', width).attr('height', height).attr('fill', '#FFFFFF');
+
+    //load sentiment analysis library
+    var sentiment = new Sentimood();
+
+
+    // create a new instrument
+    const synth = new Tone.MembraneSynth().toMaster();
+    // create a new tone loop
+    const loop = new Tone.Loop(function (time) {
+      // trigger note and hold for a half note
+      synth.triggerAttackRelease("C2", "4n");
+
+    }, "2n").start(0); //start with 0 delay, and repeat on half note beat
+
+    // Start the main music timeline
+    Tone.Transport.start();
+
+    function addMessageToScreen(message) {
+      const $area = document.querySelector('.v2t-output');
+      let $paragraph = document.createElement('p');
+      $paragraph.innerText = message;
+
+      $area.appendChild($paragraph)
+    }
+
+
+
+
+    //when we receive an "update" message from Google Speech2Text
+    socket.on('update', function (msg) {
+
+      addMessageToScreen(msg)
+
+      //convert message to lowercase
+      msg = msg.toLowerCase()
+
+      //evaluate sentiment and print score to console
+      console.log((sentiment.analyze(msg)).score)
+      score = (sentiment.analyze(msg)).score
+
+      //set tempo based on score
+      Tone.Transport.bpm.rampTo(100 + (score * 20), 2);
+
+      //set repeating notes based on score
+      const notes = new Tone.Loop(function (time) {
+        synth.triggerAttackRelease((Math.random() * 500) + (score * 25), "2n");
+      }, "4n").start(0);
+
+     
+                        //value  adjustment
+                        var scoreScale = d3.scaleLinear().domain([-10,10]).range([0,1]);
+
+                        console.log(scoreScale(score))
+
+                        //
+                        circleCentersX = Math.random()*width
+                        circleCentersY = Math.random()*height
+
+                        for(var i = 0; i < Math.abs(score) * 2; i++){
+                                svg
+                                .append('circle')
+                                .attr('r',Math.abs(Math.random()*score*30))
+                                .attr('cx',circleCentersX)
+                                .attr('cy',circleCentersY)
+                                .attr('fill',d3.interpolateRainbow(scoreScale(score * 10 * Math.random())))
+                                .attr('opacity',0)
+                                .transition() // make animation
+                                .duration(1000) // make animation run for 1 second
+                                .attr('opacity',0.2)
+                        }
+                })
+
+
+    //for downloading graphic
+    d3.select("#downloadSVG").on('click', function (d) {
+      var svgData = d3.select('svg').node().outerHTML;
+      var svgBlob = new Blob([svgData], {
+        type: "image/svg+xml;charset=utf-8"
+      });
+      var svgUrl = URL.createObjectURL(svgBlob);
+      var downloadLink = document.createElement("a");
+      downloadLink.href = svgUrl;
+      downloadLink.download = "soul.svg";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    })
+  </script>
+</body>
+</html>

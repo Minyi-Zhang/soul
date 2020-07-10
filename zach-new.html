@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <title>Minyi Soul</title>
+</head>
+<body>
+
+        <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.0.0"></script>
+        <script type="text/javascript">
+
+                TWINKLE_TWINKLE = {
+                        notes: [
+                        {pitch: 60, startTime: 0.0, endTime: 0.5},
+                        {pitch: 60, startTime: 0.5, endTime: 1.0},
+                        {pitch: 67, startTime: 1.0, endTime: 1.5},
+                        {pitch: 67, startTime: 1.5, endTime: 2.0},
+                        {pitch: 69, startTime: 2.0, endTime: 2.5},
+                        {pitch: 69, startTime: 2.5, endTime: 3.0},
+                        {pitch: 67, startTime: 3.0, endTime: 4.0},
+                        {pitch: 65, startTime: 4.0, endTime: 4.5},
+                        {pitch: 65, startTime: 4.5, endTime: 5.0},
+                        {pitch: 64, startTime: 5.0, endTime: 5.5},
+                        {pitch: 64, startTime: 5.5, endTime: 6.0},
+                        {pitch: 62, startTime: 6.0, endTime: 6.5},
+                        {pitch: 62, startTime: 6.5, endTime: 7.0},
+                        {pitch: 60, startTime: 7.0, endTime: 8.0}, 
+                        ],
+                        totalTime: 8
+                };
+
+                LITTLE_TEAPOT = {
+                 notes:[
+                 {pitch:69, startTime:0, endTime:0.5},
+                 {pitch:71, startTime:0.5, endTime:1 },
+                 {pitch:73, startTime:1, endTime:1.5},
+                 {pitch:74, startTime:1.5, endTime:2},
+                 {pitch:76, startTime:2, endTime:2.5},
+                 {pitch:81, startTime:3, endTime:4},
+                 {pitch:78, startTime:4, endTime:5},
+                 {pitch:81, startTime:5, endTime:6},
+                 {pitch:76, startTime:6, endTime:8},
+                 ],
+                 totalTime: 8
+         };
+
+
+        // Initialize the model.
+        music_rnn = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn');
+        music_rnn.initialize(); 
+
+        //basic player with synthy sounds
+        //rnnPlayer = new mm.Player();
+
+        //fancy player with upright sounds
+        rnnPlayer = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus');
+
+        //softer piano - more like a grand piano
+        //rnnPlayer = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
+
+        //won't work natively, it's drum noises though so probably not relevant.
+        //rnnPlayer = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/jazz_kit');
+
+ 
+        //how much randomness?
+
+
+
+        // The model expects a quantized sequence, and the sequecnes are just raw notes:
+        let qns = mm.sequences.quantizeNoteSequence(TWINKLE_TWINKLE, 4);
+
+
+        function playLoop(){
+
+                let randomness = Math.random()*3; 
+                let speed = 100;
+                let steps = 20
+
+                rnnPlayer.setTempo(speed); 
+
+                var rnn_temperature = parseInt(randomness);
+                //Extend the musical sequence
+                music_rnn.continueSequence(qns, steps, randomness).then( (sample) => rnnPlayer.start(sample) ).then((sample)=>playLoop());
+
+        }
+
+        playLoop();
+
+
+
+
+</script>
+</body>
+</html>
