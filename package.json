@@ -11,7 +11,7 @@
   "dependencies": {
     "@google-cloud/speech": "^3.6.0",
     "dsp.js": "^1.0.1",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "node-record-lpcm16": "^1.0.1",
     "socket.io": "^2.3.0"
   }
